@@ -39,10 +39,10 @@ browse opt mdlName = withGHC $ do
       tyThing <- modInfoLookupName modinfo name
       return $ case tyThing of
         Just (AnId i)            -> render name (idType i)
-        Just (ADataCon _datacon) -> "ADataCon " ++ render name (dataConUserType _datacon)
-        Just (ATyCon _tycon)     -> "ATyCon " ++ getOccString name -- render name (synTyConType _tycon)
-        Just (ACoAxiom _coaxiom) -> "ACoAxiom " ++ getOccString name
-        Nothing                  -> "no tyThing " ++ getOccString name
+        Just (ADataCon datacon)  -> render name (dataConUserType datacon)
+        Just (ATyCon _tycon)     -> getOccString name
+        Just (ACoAxiom _coaxiom) -> getOccString name
+        Nothing                  -> getOccString name
 
     lookupModuleInfo = findModule (mkModuleName mdlName) Nothing >>= getModuleInfo
     render name typ = getOccString name ++ " :: " ++ pretty typ
