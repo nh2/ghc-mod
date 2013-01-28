@@ -30,22 +30,27 @@ browseModule opt mdlName = convert opt . format <$> browse opt mdlName
 browse :: Options -> String -> IO [String]
 browse opt mdlName = withGHC $ do
     _ <- initSession0 opt
-    modinfo <- lookupModuleInfo
-    maybe (return []) getNamesWithTypes modinfo
+    maybe (return []) getNamesWithTypes =<< lookupModuleInfo
   where
-    getNamesWithTypes modinfo = maybe (return []) (mapM (getNameWithType modinfo)) $ modInfoTopLevelScope modinfo
+    lookupModuleInfo = findModule (mkModuleName mdlName) Nothing >>= getModuleInfo
+
+    getNamesWithTypes modinfo = mapM (getNameWithType modinfo) $ modInfoExports modinfo
 
     getNameWithType modinfo name = do
+      -- If we don't call getInfo, tyThing will be nothing for many functions. Why?
+      _ <- getInfo name
+
       tyThing <- modInfoLookupName modinfo name
+
       return $ case tyThing of
-        Just (AnId i)            -> render name (idType i)
-        Just (ADataCon datacon)  -> render name (dataConUserType datacon)
-        Just (ATyCon _tycon)     -> getOccString name
+        Just (AnId i)            -> renderWithType name (idType i)
+        Just (ADataCon datacon)  -> renderWithType name (dataConUserType datacon)
+        Just (ATyCon tycon)      -> renderWithType name (synTyConResKind tycon)
         Just (ACoAxiom _coaxiom) -> getOccString name
         Nothing                  -> getOccString name
 
-    lookupModuleInfo = findModule (mkModuleName mdlName) Nothing >>= getModuleInfo
-    render name typ = getOccString name ++ " :: " ++ pretty typ
+    renderWithType name typ = getOccString name ++ " :: " ++ pretty typ
 
+-- Copied from Info.hs
 pretty :: Type -> String
 pretty = showDocWith OneLineMode . Gap.styleDoc (mkUserStyle neverQualify AllTheWay) . pprTypeForUser False
